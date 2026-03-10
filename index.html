@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GreenTrail · Green Route Planner</title>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- PANEL -->
+<div id="panel">
+
+    <!-- Header / Brand -->
+    <div class="panel-top">
+        <div class="brand">
+            <div class="brand-logo">
+                <img src="img/Logo_geo.png" alt="Geoway" id="brand-logo-img"
+                     onerror="this.style.display='none';document.getElementById('brand-fallback').style.display='flex'">
+                <div id="brand-fallback" class="brand-fallback" style="display:none">
+                    <div class="geo-mark">G</div>
+                    <span class="geo-name">GEOWAY</span>
+                </div>
+            </div>
+            <div class="brand-right">
+                <div class="product-name">GreenTrail</div>
+                <div class="product-sub">Green Route Planner</div>
+            </div>
+            <span class="v-badge">v2.0</span>
+        </div>
+
+        <!-- Weather -->
+        <div id="weather-widget" class="weather-widget hidden">
+            <span id="w-icon">🌤</span>
+            <div class="w-main">
+                <span id="w-temp">--</span>
+                <span id="w-desc">--</span>
+            </div>
+            <div class="w-side">
+                <span id="w-wind"><i class="fas fa-wind"></i> --</span>
+                <span id="w-hum"><i class="fas fa-tint"></i> --%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location status -->
+    <div id="loc-status" class="loc-status">
+        <span class="loc-dot"></span>
+        <span id="loc-text">Requesting location…</span>
+    </div>
+
+    <!-- Destination -->
+    <div class="section">
+        <div class="s-label">DESTINATION</div>
+        <div class="tab-row">
+            <button class="tab active" data-dest="click"><i class="fas fa-map-pin"></i> Map Point</button>
+            <button class="tab" data-dest="distance"><i class="fas fa-shoe-prints"></i> Distance</button>
+        </div>
+        <div id="dist-opts" class="hidden">
+            <div class="km-pills">
+                <button class="km-pill active" data-km="5">5 km</button>
+                <button class="km-pill" data-km="10">10 km</button>
+                <button class="km-pill" data-km="15">15 km</button>
+            </div>
+            <div class="hint"><i class="fas fa-circle" style="color:#ff4b4b;font-size:.55rem"></i> Red ring = search area · App picks the greenest spot within it</div>
+        </div>
+    </div>
+
+    <!-- Route type -->
+    <div class="section">
+        <div class="s-label">ROUTE TYPE</div>
+        <div class="tab-row">
+            <button class="tab active" data-type="return"><i class="fas fa-arrows-left-right"></i> Return</button>
+            <button class="tab" data-type="tour"><i class="fas fa-circle-notch"></i> Circular Tour</button>
+        </div>
+        <div id="type-hint" class="hint">Same path outward and back</div>
+    </div>
+
+    <!-- Green priority -->
+    <div class="section">
+        <div class="s-label">GREEN PRIORITY <span id="green-pct-label" class="green-pct">70%</span></div>
+        <div class="slider-wrap">
+            <i class="fas fa-road" style="color:#aaa;font-size:.8rem"></i>
+            <input type="range" id="green-weight" min="0" max="100" value="70" class="g-slider">
+            <i class="fas fa-leaf" style="color:#4caf50;font-size:.8rem"></i>
+        </div>
+    </div>
+
+    <!-- Calculate + New Route -->
+    <div class="action-row">
+        <button id="calculate-btn" class="btn-calc" disabled>
+            <i class="fas fa-seedling"></i> Find Green Route
+        </button>
+        <button id="new-route-btn" class="btn-new hidden">
+            <i class="fas fa-plus"></i> New Route
+        </button>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="results hidden">
+        <div class="results-top">
+            <span class="s-label">ROUTE RESULTS</span>
+            <!-- Export buttons -->
+            <div class="export-btns">
+                <button id="export-gmaps" class="btn-export" title="Open in Google Maps">
+                    <i class="fab fa-google"></i> Maps
+                </button>
+                <button id="export-apple" class="btn-export apple" title="Open in Apple Maps">
+                    <i class="fab fa-apple"></i> Maps
+                </button>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="m-card green"><i class="fas fa-leaf"></i><span id="green-score">0</span><small>% Green</small></div>
+            <div class="m-card"><i class="fas fa-mountain"></i><span id="avg-slope">0</span><small>% Slope</small></div>
+            <div class="m-card"><i class="fas fa-traffic-light"></i><span id="traffic-lights">0</span><small>Signals</small></div>
+            <div class="m-card"><i class="fas fa-star"></i><span id="walk-index">0</span><small>Score</small></div>
+        </div>
+
+        <div class="diff-row">
+            <span id="diff-badge" class="diff-badge">Easy</span>
+            <span id="total-dist-badge" class="dist-badge"></span>
+        </div>
+
+        <div class="s-label" style="margin:10px 0 4px">PATH TYPES</div>
+        <div id="highway-stats" class="stat-list"></div>
+        <div class="s-label" style="margin:8px 0 4px">SURFACES</div>
+        <div id="surface-stats" class="stat-list"></div>
+    </div>
+
+    <!-- Map layers -->
+    <div class="section">
+        <div class="s-label">BASE MAP</div>
+        <div class="layer-row">
+            <button class="layer-btn active" data-layer="green"><i class="fas fa-tree"></i> Green</button>
+            <button class="layer-btn" data-layer="satellite"><i class="fas fa-satellite"></i> Satellite</button>
+            <button class="layer-btn" data-layer="osm"><i class="fas fa-map"></i> OSM</button>
+        </div>
+    </div>
+
+    <!-- Overlays -->
+    <div class="section">
+        <div class="s-label">OVERLAYS</div>
+        <label class="tog-label">
+            <span><i class="fas fa-tree" style="color:#4caf50"></i> Berlin Parks</span>
+            <div class="tog"><input type="checkbox" id="show-parks"><span class="tog-track"></span></div>
+        </label>
+        <label class="tog-label">
+            <span><i class="fas fa-route" style="color:#8bc34a"></i> Green Routes</span>
+            <div class="tog"><input type="checkbox" id="show-greenways"><span class="tog-track"></span></div>
+        </label>
+        <label class="tog-label">
+            <span><i class="fas fa-star" style="color:#ff9800"></i> Recommended Routes</span>
+            <div class="tog"><input type="checkbox" id="show-recommended"><span class="tog-track"></span></div>
+        </label>
+    </div>
+
+    <div class="panel-footer">
+        GreenTrail by <strong>Geoway</strong> · OSM · OSRM · Open-Elevation · Open-Meteo
+    </div>
+</div>
+
+<!-- ELEVATION + FACTOR TIMELINES PANEL (bottom) -->
+<div id="elev-panel" class="elev-panel hidden">
+    <div class="elev-header">
+        <div class="elev-title"><i class="fas fa-chart-area"></i> Elevation Profile</div>
+        <div class="elev-meta">
+            <span class="elev-tag" id="elev-dist"></span>
+            <span class="elev-tag green" id="elev-gain"></span>
+        </div>
+        <div class="elev-btns">
+            <button id="btn-min" class="icon-btn" title="Minimize"><i class="fas fa-chevron-down"></i></button>
+            <button id="btn-close" class="icon-btn" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <div class="elev-chart-wrap">
+        <canvas id="elev-canvas"></canvas>
+    </div>
+
+    <!-- Factor timeline rows -->
+    <div id="factor-timelines" class="factor-timelines-wrap"></div>
+</div>
+
+<!-- Factor hover tooltip -->
+<div id="factor-tooltip" class="factor-tooltip hidden">
+    <i id="ft-tip-icon" class="fas"></i>
+    <div class="ft-tip-content">
+        <strong id="ft-tip-name"></strong>
+        <span id="ft-tip-dist"></span>
+    </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="routing.js"></script>
+<script src="wfs-layers.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

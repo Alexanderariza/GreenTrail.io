@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "waypoints",
+"features": [
+{ "type": "Feature", "properties": { "name": "Parkplatz", "sym": "Flag, Blue" }, "geometry": { "type": "Point", "coordinates": [ 13.356267, 52.620611 ] } },
+{ "type": "Feature", "properties": { "name": "Holzsteg durch das Moor am Tegeler Fließ", "sym": "Picnic Area" }, "geometry": { "type": "Point", "coordinates": [ 13.340888, 52.622824 ] } },
+{ "type": "Feature", "properties": { "name": "Köppchensee", "sym": "Flag, Blue" }, "geometry": { "type": "Point", "coordinates": [ 13.367952, 52.625109 ] } },
+{ "type": "Feature", "properties": { "name": "Alt-Lübars: Dorfkirche und Schulhaus", "sym": "Flag, Blue" }, "geometry": { "type": "Point", "coordinates": [ 13.356586, 52.620716 ] } }
+]
+}
